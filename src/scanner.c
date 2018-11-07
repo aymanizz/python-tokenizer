@@ -326,6 +326,13 @@ next_token:
         case '!':
             if (match('='))
                 return makeToken(TOKEN_NOTEQUAL);
+        case '\\':
+            if (match('\n')) {
+                scanner.is_line_start = false;
+                goto next_token;
+            }
+            return errorToken(
+                "unexpected character after line continuation character");
         case '\n':
             if (scanner.level > 0) {
                 goto next_token;
