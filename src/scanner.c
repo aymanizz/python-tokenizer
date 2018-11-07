@@ -177,6 +177,8 @@ static IndentState checkIndent() {
         } else if (peek() == '\n') {
             advance();
             markTokenStart();
+        } else if (isAtEnd()) {
+            return INDENT_NONE;
         } else {
             break;
         }
