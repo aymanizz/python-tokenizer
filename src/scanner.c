@@ -162,13 +162,15 @@ static IndentState checkIndent() {
         return INDENT_DECREMENT;
 
     int spaces;
-    while (true) {
+    for (;;) {
         spaces = 0;
-        while (peek() == ' ' || peek() == '\t') {
-            if (advance() == ' ')
+        for (;;) {
+            if (match(' '))
                 ++spaces;
-            else
+            else if (match('\t'))
                 spaces += 4;
+            else
+                break;
         }
 
         if (isWhitespace(peek())) {
@@ -213,13 +215,9 @@ next_token:
 
     markTokenStart();
 
-    // scanner.is_line_start can be set to true by the previous
-    // call to skipWhiteSpace.
-    if (scanner.is_line_start && scanner.level == 0)
-    indent_check_start_no_condition: {
-        IndentState state = checkIndent();
-
-        switch (state) {
+    if (scanner.is_line_start && scanner.level == 0) {
+    check_indent:
+        switch (checkIndent()) {
             case INDENT_INCREMENT:
                 return makeToken(TOKEN_INDENT);
             case INDENT_DECREMENT:
@@ -239,7 +237,7 @@ next_token:
 
     if (isAtEnd()) {
         if (scanner.indent != 0 || scanner.pending_dedents != 0) {
-            goto indent_check_start_no_condition;
+            goto check_indent;
         }
         return makeToken(TOKEN_ENDMARKER);
     }
@@ -345,7 +343,7 @@ next_token:
 }
 
 void printToken(Token token) {
-    #define HANDLE_CASE(TOKEN) \
+    #define PRINT_TOKEN(TOKEN) \
         case TOKEN_ ## TOKEN: \
             printf("%02i, %02i: \t %-16s \'%.*s\'\n", \
                 token.line, token.column, #TOKEN, token.length, token.start); \
@@ -357,8 +355,8 @@ void printToken(Token token) {
     }
 
     switch (token.type) {
-        FOREACH_TOKEN(HANDLE_CASE)
+        FOREACH_TOKEN(PRINT_TOKEN)
     }
 
-    #undef HANDLE_CASE
+    #undef PRINT_TOKEN
 }
