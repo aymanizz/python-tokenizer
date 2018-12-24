@@ -59,6 +59,14 @@ static bool isAtEnd(Scanner const *scnr) {
     return *scnr->current == '\0';
 }
 
+static bool isSignificantWhitespace(Scanner const *const scnr) {
+    return scnr->is_line_start && scnr->level == 0;
+}
+
+static bool hasPendingDedents(Scanner const *const scnr) {
+    return scnr->indent != 0 || scnr->pending_dedents != 0;
+}
+
 static char peek(Scanner const *scnr) {
     return *scnr->current;
 }
@@ -154,34 +162,30 @@ typedef enum {
     INDENT_DECREMENT,
     INDENT_EXCEED,
     INDENT_ERROR,
-    INDENT_NONE
+    INDENT_NONE,
+    INDENT_EMPTY
 } IndentState;
 
 static IndentState checkIndent(Scanner *scnr) {
-    if (scnr->pending_dedents < 0)
+    if (scnr->pending_dedents > 0)
         return INDENT_DECREMENT;
 
-    int spaces;
+    int spaces = 0;
     for (;;) {
-        spaces = 0;
-        for (;;) {
-            if (match(scnr, ' '))
-                ++spaces;
-            else if (match(scnr, '\t'))
-                spaces += 4;
-            else
-                break;
-        }
-
-        if (isWhitespace(peek(scnr))) {
-            skipWhitespace(scnr);
-            markTokenStart(scnr);
-        } else if (peek(scnr) == '\n') {
-            advance(scnr);
-            markTokenStart(scnr);
-        } else {
+        if (match(scnr, ' '))
+            ++spaces;
+        else if (match(scnr, '\t'))
+            spaces += 4;
+        else
             break;
-        }
+    }
+
+    // handle empty lines.
+    if (isWhitespace(peek(scnr))) {
+        skipWhitespace(scnr);
+        return INDENT_EMPTY;
+    } else if (peek(scnr) == '\n') {
+        return INDENT_EMPTY;
     }
     
     if (scnr->indents[scnr->indent] == spaces) {
@@ -195,7 +199,7 @@ static IndentState checkIndent(Scanner *scnr) {
     } else {
         while (scnr->indents[scnr->indent] > spaces) {
             --scnr->indent;
-            --scnr->pending_dedents;
+            ++scnr->pending_dedents;
         }
 
         if (scnr->indents[scnr->indent] < spaces)
@@ -206,38 +210,52 @@ static IndentState checkIndent(Scanner *scnr) {
 }
 
 Token scanToken(Scanner *scnr) {
-next_token:
-    if (!scnr->is_line_start || scnr->level != 0) {
+    if (!isSignificantWhitespace(scnr)) {
         skipWhitespace(scnr);
     }
 
     markTokenStart(scnr);
+    
+    while (isSignificantWhitespace(scnr)
+        || (isAtEnd(scnr) && hasPendingDedents(scnr))) {
+        IndentState state = checkIndent(scnr);
 
-    if (scnr->is_line_start && scnr->level == 0) {
-    check_indent:
-        switch (checkIndent(scnr)) {
-            case INDENT_INCREMENT:
-                return makeToken(scnr, TOKEN_INDENT);
-            case INDENT_DECREMENT:
-                ++scnr->pending_dedents;
-                return makeToken(scnr, TOKEN_DEDENT);
-            case INDENT_EXCEED:
-                return errorToken(scnr,
-                    "indents exceeded the maximum indentation limit");
-            case INDENT_ERROR:
-                return errorToken(scnr, "unexpected indent");
-            case INDENT_NONE:
-                break;
+        if (state == INDENT_INCREMENT) {
+            return makeToken(scnr, TOKEN_INDENT);
+        } else if (state == INDENT_DECREMENT) {
+            --scnr->pending_dedents;
+            return makeToken(scnr, TOKEN_DEDENT);
+        } else if (state == INDENT_EXCEED) { 
+            return errorToken(scnr,
+                "indents exceeded the maximum indentation limit");
+        } else if (state == INDENT_ERROR) {
+            return errorToken(scnr, "unexpected indent");
+        } else if (state == INDENT_NONE) {
+            markTokenStart(scnr);
+            break;
+        } else if (state == INDENT_EMPTY) {
+            // consume insignificant newline character if any.
+            match(scnr, '\n');
+            markTokenStart(scnr);
+            continue;
         }
     }
 
-    markTokenStart(scnr);
-
     if (isAtEnd(scnr)) {
-        if (scnr->indent != 0 || scnr->pending_dedents != 0) {
-            goto check_indent;
-        }
         return makeToken(scnr, TOKEN_ENDMARKER);
+    }
+
+    if (peek(scnr) == '\n') {
+        if (scnr->level > 0) {
+            advance(scnr);
+            return scanToken(scnr);
+        } else {
+            // emit token at the correct line and column.
+            ++scnr->current_column;
+            Token tok = makeToken(scnr, TOKEN_NEWLINE);
+            advance(scnr);
+            return tok;
+        }
     }
 
     char c = advance(scnr);
@@ -334,16 +352,10 @@ next_token:
         case '\\':
             if (match(scnr, '\n')) {
                 scnr->is_line_start = false;
-                goto next_token;
+                return scanToken(scnr);
             }
             return errorToken(scnr,
                 "unexpected character after line continuation character");
-        case '\n':
-            if (scnr->level > 0) {
-                goto next_token;
-            } else {
-                return makeToken(scnr, TOKEN_NEWLINE);
-            }
     }
 
     return errorToken(scnr, "unexpected character");
