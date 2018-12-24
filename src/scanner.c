@@ -360,22 +360,3 @@ Token scanToken(Scanner *scnr) {
 
     return errorToken(scnr, "unexpected character");
 }
-
-void printToken(Token const token) {
-    #define PRINT_TOKEN(TOKEN) \
-        case TOKEN_ ## TOKEN: \
-            printf("%02i, %02i: \t %-16s \'%.*s\'\n", \
-                token.line, token.column, #TOKEN, token.length, token.start); \
-            break;
-
-    if (token.type == TOKEN_NEWLINE) {
-        printf("%02i, %02i: \t %-16s\n", token.line, token.column, "NEWLINE");
-        return;
-    }
-
-    switch (token.type) {
-        FOREACH_TOKEN(PRINT_TOKEN)
-    }
-
-    #undef PRINT_TOKEN
-}

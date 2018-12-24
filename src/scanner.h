@@ -124,10 +124,4 @@ void initScanner(Scanner *scanner, const char *source);
  */
 Token scanToken(Scanner *scanner);
 
-/* printToken: helper function for printing a token representation.
- *
- * prints the token in the format: <line>, <column> <type name> <lexeme>
- */
-void printToken(Token token);
-
 #endif
