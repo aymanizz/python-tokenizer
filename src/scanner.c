@@ -126,8 +126,8 @@ static Token name() {
     return makeToken(TOKEN_NAME);
 }
 
-static Token string() {
-    while (!isAtEnd() && peek() != '\n' && peek() != '"') {
+static Token string(char quote_char) {
+    while (!isAtEnd() && peek() != '\n' && peek() != quote_char) {
         advance();
     }
 
@@ -248,7 +248,7 @@ next_token:
 
     if (isDigit(c)) return number();
     else if (isAlpha(c)) return name();
-    else if (c == '"') return string();
+    else if (c == '"' || c == '\'') return string(c);
     
     switch (c) {
         case '(':
