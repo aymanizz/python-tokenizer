@@ -39,10 +39,11 @@ static char *readFile(const char *path) {
 static void runFile(const char *path) {
     char *source = readFile(path);
 
-    initScanner(source);
-    for (Token tok = scanToken();
+    Scanner scanner;
+    initScanner(&scanner, source);
+    for (Token tok = scanToken(&scanner);
         tok.type != TOKEN_ENDMARKER;
-        tok = scanToken())
+        tok = scanToken(&scanner))
     {
         printToken(tok);
     }

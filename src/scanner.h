@@ -109,8 +109,6 @@ typedef struct {
     bool is_line_start;
 } Scanner;
 
-extern Scanner scanner;
-
 /* initScanner: initialize the global scanner.
  * 
  * @source: the source string to tokenize.
@@ -118,13 +116,13 @@ extern Scanner scanner;
  * initialize the scanner to put it in a valid state. this must be called
  * before scanning tokens.
  */
-void initScanner(const char *source);
+void initScanner(Scanner *scanner, const char *source);
 
 /* scanToken: scan a token and return it token.
  *
  * scan a token and return it. this alter's the inner state of the scanner.
  */
-Token scanToken();
+Token scanToken(Scanner *scanner);
 
 /* printToken: helper function for printing a token representation.
  *

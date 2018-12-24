@@ -4,76 +4,74 @@
 
 #include "scanner.h"
 
-Scanner scanner;
-
-void initScanner(const char *source) {
-    scanner.start = source;
-    scanner.current = source;
-    scanner.start_line = 1;
-    scanner.start_column = 0;
-    scanner.current_column = 0;
-    scanner.level = 0;
-    scanner.indents[0] = 0;
-    scanner.indent = 0;
-    scanner.pending_dedents = 0;
-    scanner.is_line_start = true;
+void initScanner(Scanner *scnr, const char *source) {
+    scnr->start = source;
+    scnr->current = source;
+    scnr->start_line = 1;
+    scnr->start_column = 0;
+    scnr->current_column = 0;
+    scnr->level = 0;
+    scnr->indents[0] = 0;
+    scnr->indent = 0;
+    scnr->pending_dedents = 0;
+    scnr->is_line_start = true;
 }
 
-static Token makeToken(TokenType type) {
+static Token makeToken(Scanner const *scnr, TokenType type) {
     return (Token) {
         .type = type,
-        .start = scanner.start,
-        .length = (int)(scanner.current - scanner.start),
-        .line = scanner.start_line,
-        .column = scanner.start_column
+        .start = scnr->start,
+        .length = (int)(scnr->current - scnr->start),
+        .line = scnr->start_line,
+        .column = scnr->start_column
     };
 }
 
-static Token errorToken(const char *message) {
+static Token errorToken(Scanner const *scnr, const char *message) {
     return (Token) {
         .type = TOKEN_ERROR,
         .start = message,
         .length = strlen(message),
-        .line = scanner.start_line,
-        .column = scanner.start_column
+        .line = scnr->start_line,
+        .column = scnr->start_column
     };
 }
 
-static void markTokenStart() {
-    scanner.start = scanner.current;
-    scanner.start_column = scanner.current_column;
+static void markTokenStart(Scanner *scnr) {
+    scnr->start = scnr->current;
+    scnr->start_column = scnr->current_column;
 }
 
-static char advance() {
-    if (*scanner.current == '\n') {
-        ++scanner.start_line;
-        scanner.current_column = 0;
-        scanner.is_line_start = true;
+static char advance(Scanner *scnr) {
+    if (*scnr->current == '\n') {
+        ++scnr->start_line;
+        scnr->current_column = 0;
+        scnr->is_line_start = true;
     } else {
-        ++scanner.current_column;
-        scanner.is_line_start = false;
+        ++scnr->current_column;
+        scnr->is_line_start = false;
     }
 
-    return *scanner.current++;
+    return *scnr->current++;
 }
 
-static bool isAtEnd() {
-    return *scanner.current == '\0';
+static bool isAtEnd(Scanner const *scnr) {
+    return *scnr->current == '\0';
 }
 
-static char peek() {
-    return *scanner.current;
+static char peek(Scanner const *scnr) {
+    return *scnr->current;
 }
 
-static char peekNext() {
-    if (isAtEnd())
+static char peekNext(Scanner const *scnr) {
+    if (isAtEnd(scnr))
         return '\0';
-    return scanner.current[1];
+    return scnr->current[1];
 }
 
-static char match(const char expected) {
-    if (peek() == expected) {
-        advance();
+static char match(Scanner *scnr, const char expected) {
+    if (peek(scnr) == expected) {
+        advance(scnr);
         return true;
     }
     return false;
@@ -97,21 +95,21 @@ static bool isWhitespace(const char c) {
         || c == ' ' || c == '#';
 }
 
-static void skipWhitespace() {
+static void skipWhitespace(Scanner *scnr) {
     for (;;) {
-        switch (peek()) {
+        switch (peek(scnr)) {
             case ' ':
             case '\t':
             case '\r':
-                advance();
+                advance(scnr);
                 break;
             case '\n':
                 return;
             case '#':
-                while (!isAtEnd() && peek() != '\n')
-                    advance();
-                if (!isAtEnd())
-                    advance(); // consume newline.
+                while (!isAtEnd(scnr) && peek(scnr) != '\n')
+                    advance(scnr);
+                if (!isAtEnd(scnr))
+                    advance(scnr); // consume newline.
                 return;
             default:
                 return;
@@ -119,34 +117,38 @@ static void skipWhitespace() {
     }
 }
 
-static Token name() {
-    while (isAlphanum(peek()))
-        advance();
+static Token name(Scanner *scnr) {
+    while (isAlphanum(peek(scnr)))
+        advance(scnr);
 
-    return makeToken(TOKEN_NAME);
+    return makeToken(scnr, TOKEN_NAME);
 }
 
-static Token string(char quote_char) {
-    while (!isAtEnd() && peek() != '\n' && peek() != quote_char) {
-        advance();
+static Token string(Scanner *scnr, char quote_char) {
+    while (!isAtEnd(scnr)
+        && peek(scnr) != '\n'
+        && peek(scnr) != quote_char) {
+        advance(scnr);
     }
 
-    if (isAtEnd() || peek() == '\n')
-        return errorToken("unterminated string literal");
+    if (isAtEnd(scnr) || peek(scnr) == '\n')
+        return errorToken(scnr, "unterminated string literal");
 
-    advance(); // consume the closing quotation mark.
-    return makeToken(TOKEN_STRING);
+    advance(scnr); // consume the closing quotation mark.
+    return makeToken(scnr, TOKEN_STRING);
 }
 
-static Token number() {
-    while (isDigit(peek())) advance();
+static Token number(Scanner *scnr) {
+    while (isDigit(peek(scnr)))
+        advance(scnr);
 
-    if (peek() == '.' && isDigit(peekNext())) {
-        advance();
-        while (isDigit(peek())) advance();
+    if (peek(scnr) == '.' && isDigit(peekNext(scnr))) {
+        advance(scnr);
+        while (isDigit(peek(scnr)))
+            advance(scnr);
     }
 
-    return makeToken(TOKEN_NUMBER);
+    return makeToken(scnr, TOKEN_NUMBER);
 }
 
 typedef enum {
@@ -157,192 +159,201 @@ typedef enum {
     INDENT_NONE
 } IndentState;
 
-static IndentState checkIndent() {
-    if (scanner.pending_dedents < 0)
+static IndentState checkIndent(Scanner *scnr) {
+    if (scnr->pending_dedents < 0)
         return INDENT_DECREMENT;
 
     int spaces;
     for (;;) {
         spaces = 0;
         for (;;) {
-            if (match(' '))
+            if (match(scnr, ' '))
                 ++spaces;
-            else if (match('\t'))
+            else if (match(scnr, '\t'))
                 spaces += 4;
             else
                 break;
         }
 
-        if (isWhitespace(peek())) {
-            skipWhitespace();
-            markTokenStart();
-        } else if (peek() == '\n') {
-            advance();
-            markTokenStart();
-        } else if (isAtEnd()) {
+        if (isWhitespace(peek(scnr))) {
+            skipWhitespace(scnr);
+            markTokenStart(scnr);
+        } else if (peek(scnr) == '\n') {
+            advance(scnr);
+            markTokenStart(scnr);
+        } else if (isAtEnd(scnr)) {
             return INDENT_NONE;
         } else {
             break;
         }
     }
     
-    if (scanner.indents[scanner.indent] == spaces) {
+    if (scnr->indents[scnr->indent] == spaces) {
         return INDENT_NONE;
-    } else if (scanner.indents[scanner.indent] < spaces) {
-        if (scanner.indent + 1 == MAX_INDENT)
+    } else if (scnr->indents[scnr->indent] < spaces) {
+        if (scnr->indent + 1 == MAX_INDENT)
             return INDENT_EXCEED;
 
-        scanner.indents[++scanner.indent] = spaces;
+        scnr->indents[++scnr->indent] = spaces;
         return INDENT_INCREMENT;
     } else {
-        while (scanner.indents[scanner.indent] > spaces) {
-            --scanner.indent;
-            --scanner.pending_dedents;
+        while (scnr->indents[scnr->indent] > spaces) {
+            --scnr->indent;
+            --scnr->pending_dedents;
         }
 
-        if (scanner.indents[scanner.indent] < spaces)
+        if (scnr->indents[scnr->indent] < spaces)
             return INDENT_ERROR;
 
         return INDENT_DECREMENT;
     }
 }
 
-Token scanToken() {
+Token scanToken(Scanner *scnr) {
 next_token:
-    if (!scanner.is_line_start || scanner.level != 0) {
-        skipWhitespace();
+    if (!scnr->is_line_start || scnr->level != 0) {
+        skipWhitespace(scnr);
     }
 
-    markTokenStart();
+    markTokenStart(scnr);
 
-    if (scanner.is_line_start && scanner.level == 0) {
+    if (scnr->is_line_start && scnr->level == 0) {
     check_indent:
-        switch (checkIndent()) {
+        switch (checkIndent(scnr)) {
             case INDENT_INCREMENT:
-                return makeToken(TOKEN_INDENT);
+                return makeToken(scnr, TOKEN_INDENT);
             case INDENT_DECREMENT:
-                ++scanner.pending_dedents;
-                return makeToken(TOKEN_DEDENT);
+                ++scnr->pending_dedents;
+                return makeToken(scnr, TOKEN_DEDENT);
             case INDENT_EXCEED:
-                return errorToken(
+                return errorToken(scnr,
                     "indents exceeded the maximum indentation limit");
             case INDENT_ERROR:
-                return errorToken("unexpected indent");
+                return errorToken(scnr, "unexpected indent");
             case INDENT_NONE:
                 break;
         }
     }
 
-    markTokenStart();
+    markTokenStart(scnr);
 
-    if (isAtEnd()) {
-        if (scanner.indent != 0 || scanner.pending_dedents != 0) {
+    if (isAtEnd(scnr)) {
+        if (scnr->indent != 0 || scnr->pending_dedents != 0) {
             goto check_indent;
         }
-        return makeToken(TOKEN_ENDMARKER);
+        return makeToken(scnr, TOKEN_ENDMARKER);
     }
 
-    char c = advance();
+    char c = advance(scnr);
 
-    if (isDigit(c)) return number();
-    else if (isAlpha(c)) return name();
-    else if (c == '"' || c == '\'') return string(c);
+    if (isDigit(c)) return number(scnr);
+    else if (isAlpha(c)) return name(scnr);
+    else if (c == '"' || c == '\'') return string(scnr, c);
     
     switch (c) {
         case '(':
-            ++scanner.level;
-            return makeToken(TOKEN_LPAR);
+            ++scnr->level;
+            return makeToken(scnr, TOKEN_LPAR);
         case ')':
-            --scanner.level;
-            return makeToken(TOKEN_RPAR);
+            --scnr->level;
+            return makeToken(scnr, TOKEN_RPAR);
         case '{':
-            ++scanner.level;
-            return makeToken(TOKEN_LBRACE);
+            ++scnr->level;
+            return makeToken(scnr, TOKEN_LBRACE);
         case '}':
-            --scanner.level;
-            return makeToken(TOKEN_RBRACE);
+            --scnr->level;
+            return makeToken(scnr, TOKEN_RBRACE);
         case '[':
-            ++scanner.level;
-            return makeToken(TOKEN_LSQB);
+            ++scnr->level;
+            return makeToken(scnr, TOKEN_LSQB);
         case ']':
-            --scanner.level;
-            return makeToken(TOKEN_RSQB);
+            --scnr->level;
+            return makeToken(scnr, TOKEN_RSQB);
         case ':':
-            return makeToken(TOKEN_COLON);
+            return makeToken(scnr, TOKEN_COLON);
         case ';':
-            return makeToken(TOKEN_SEMI);
+            return makeToken(scnr, TOKEN_SEMI);
         case ',':
-            return makeToken(TOKEN_COMMA);
+            return makeToken(scnr, TOKEN_COMMA);
         case '.':
-            if (peek() == '.' && peekNext() == '.')
-                return makeToken(TOKEN_ELLIPSIS);
-            return makeToken(TOKEN_DOT);
+            if (peek(scnr) == '.' && peekNext(scnr) == '.')
+                return makeToken(scnr, TOKEN_ELLIPSIS);
+            return makeToken(scnr, TOKEN_DOT);
         case '+':
-            return makeToken(match('=') ? TOKEN_PLUSEQUAL : TOKEN_PLUS);
+            return makeToken(scnr,
+                match(scnr, '=') ? TOKEN_PLUSEQUAL : TOKEN_PLUS);
         case '-':
-            if (match('>')) return makeToken(TOKEN_RARROW);
-            return makeToken(match('=') ? TOKEN_MINEQUAL : TOKEN_MINUS);
+            if (match(scnr, '>')) return makeToken(scnr, TOKEN_RARROW);
+            return makeToken(scnr,
+                match(scnr, '=') ? TOKEN_MINEQUAL : TOKEN_MINUS);
         case '*': 
-            if (match('*'))
-                return makeToken(
-                    match('=') ? TOKEN_DOUBLESTAREQUAL : TOKEN_DOUBLESTAR);
+            if (match(scnr, '*'))
+                return makeToken(scnr,
+                    match(scnr, '=') ? TOKEN_DOUBLESTAREQUAL : TOKEN_DOUBLESTAR);
             else
-                return makeToken(match('=') ? TOKEN_STAREQUAL : TOKEN_STAR);
+                return makeToken(scnr,
+                    match(scnr, '=') ? TOKEN_STAREQUAL : TOKEN_STAR);
         case '/':
-            if (match('/'))
-                return makeToken(
-                    match('=') ? TOKEN_DOUBLESLASHEQUAL : TOKEN_DOUBLESLASH);
+            if (match(scnr, '/'))
+                return makeToken(scnr,
+                    match(scnr, '=') ? TOKEN_DOUBLESLASHEQUAL : TOKEN_DOUBLESLASH);
             else
-                return makeToken(match('=') ? TOKEN_SLASHEQUAL : TOKEN_SLASH);
+                return makeToken(scnr,
+                    match(scnr, '=') ? TOKEN_SLASHEQUAL : TOKEN_SLASH);
         case '@':
-            return makeToken(match('=') ? TOKEN_ATEQUAL : TOKEN_AT);
+            return makeToken(scnr,
+                match(scnr, '=') ? TOKEN_ATEQUAL : TOKEN_AT);
         case '%':
-            return makeToken(match('=') ? TOKEN_PERCENTEQUAL : TOKEN_PERCENT);
+            return makeToken(scnr,
+                match(scnr, '=') ? TOKEN_PERCENTEQUAL : TOKEN_PERCENT);
         case '|':
-            return makeToken(match('=') ? TOKEN_VBAREQUAL : TOKEN_VBAR);
+            return makeToken(scnr,
+                match(scnr, '=') ? TOKEN_VBAREQUAL : TOKEN_VBAR);
         case '&':
-            return makeToken(match('=') ? TOKEN_AMPER : TOKEN_AMPEREQUAL);
+            return makeToken(scnr,
+                match(scnr, '=') ? TOKEN_AMPER : TOKEN_AMPEREQUAL);
         case '^':
-            return makeToken(
-                match('=') ? TOKEN_CIRCUMFLEXEQUAL : TOKEN_CIRCUMFLEX);
+            return makeToken(scnr,
+                match(scnr, '=') ? TOKEN_CIRCUMFLEXEQUAL : TOKEN_CIRCUMFLEX);
         case '=':
-            return makeToken(match('=') ? TOKEN_EQEQUAL : TOKEN_EQUAL);
+            return makeToken(scnr,
+                match(scnr, '=') ? TOKEN_EQEQUAL : TOKEN_EQUAL);
         case '<':
-            if (match('<'))
-                return makeToken(
-                    match('=') ? TOKEN_LEFTSHIFTEQUAL : TOKEN_LEFTSHIFT);
+            if (match(scnr, '<'))
+                return makeToken(scnr,
+                    match(scnr, '=') ? TOKEN_LEFTSHIFTEQUAL : TOKEN_LEFTSHIFT);
             else
-                return makeToken(
-                    match('=') ? TOKEN_LESSEQUAL : TOKEN_LESS);
+                return makeToken(scnr,
+                    match(scnr, '=') ? TOKEN_LESSEQUAL : TOKEN_LESS);
         case '>':
-            if (match('>'))
-                return makeToken(
-                    match('=') ? TOKEN_RIGHTSHIFTEQUAL : TOKEN_RIGHTSHIFT);
+            if (match(scnr, '>'))
+                return makeToken(scnr,
+                    match(scnr, '=') ? TOKEN_RIGHTSHIFTEQUAL : TOKEN_RIGHTSHIFT);
             else
-                return makeToken(
-                    match('=') ? TOKEN_GREATEREQUAL : TOKEN_GREATER);
+                return makeToken(scnr,
+                    match(scnr, '=') ? TOKEN_GREATEREQUAL : TOKEN_GREATER);
         case '!':
-            if (match('='))
-                return makeToken(TOKEN_NOTEQUAL);
+            if (match(scnr, '='))
+                return makeToken(scnr, TOKEN_NOTEQUAL);
         case '\\':
-            if (match('\n')) {
-                scanner.is_line_start = false;
+            if (match(scnr, '\n')) {
+                scnr->is_line_start = false;
                 goto next_token;
             }
-            return errorToken(
+            return errorToken(scnr,
                 "unexpected character after line continuation character");
         case '\n':
-            if (scanner.level > 0) {
+            if (scnr->level > 0) {
                 goto next_token;
             } else {
-                return makeToken(TOKEN_NEWLINE);
+                return makeToken(scnr, TOKEN_NEWLINE);
             }
     }
 
-    return errorToken("unexpected character");
+    return errorToken(scnr, "unexpected character");
 }
 
-void printToken(Token token) {
+void printToken(Token const token) {
     #define PRINT_TOKEN(TOKEN) \
         case TOKEN_ ## TOKEN: \
             printf("%02i, %02i: \t %-16s \'%.*s\'\n", \
