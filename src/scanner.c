@@ -87,7 +87,7 @@ static bool isAlpha(const char c) {
 }
 
 static bool isAlphanum(const char c) {
-    return isAlpha(c) || isDigit(c);
+    return isAlpha(c) || isDigit(c) || c == '_';
 }
 
 static bool isWhitespace(const char c) {
@@ -108,8 +108,6 @@ static void skipWhitespace(Scanner *scnr) {
             case '#':
                 while (!isAtEnd(scnr) && peek(scnr) != '\n')
                     advance(scnr);
-                if (!isAtEnd(scnr))
-                    advance(scnr); // consume newline.
                 return;
             default:
                 return;
@@ -181,8 +179,6 @@ static IndentState checkIndent(Scanner *scnr) {
         } else if (peek(scnr) == '\n') {
             advance(scnr);
             markTokenStart(scnr);
-        } else if (isAtEnd(scnr)) {
-            return INDENT_NONE;
         } else {
             break;
         }
