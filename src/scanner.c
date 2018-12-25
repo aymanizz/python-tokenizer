@@ -217,6 +217,12 @@ Token scanToken(Scanner *scnr) {
 
     markTokenStart(scnr);
 
+    if (isAtEnd(scnr) && scnr->level != 0) {
+        // report the error only once.
+        scnr->level = 0;
+        return errorToken(scnr, "EOF in multi-line statement");
+    }
+
     while (isSignificantWhitespace(scnr)
         || (isAtEnd(scnr) && hasPendingDedents(scnr))) {
         IndentState state = checkIndent(scnr);
