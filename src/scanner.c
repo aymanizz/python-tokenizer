@@ -123,11 +123,91 @@ static void skipWhitespace(Scanner *scnr) {
     }
 }
 
+static TokenType nameType(Scanner *scnr) {
+    int id_len = scnr->current - scnr->start;
+
+    #define IS_TOKEN(STRING)     \
+        id_len == strlen(STRING) \
+        && !memcmp(scnr->start, STRING, strlen(STRING))
+
+    if (IS_TOKEN("as")) {
+        return TOKEN_AS;
+    } else if (IS_TOKEN("and")) {
+        return TOKEN_AND;
+    } else if (IS_TOKEN("assert")) {
+        return TOKEN_ASSERT;
+    } else if (IS_TOKEN("break")) {
+        return TOKEN_BREAK;
+    } else if (IS_TOKEN("class")) {
+        return TOKEN_CLASS;
+    } else if (IS_TOKEN("continue")) {
+        return TOKEN_CONTINUE;
+    } else if (IS_TOKEN("def")) {
+        return TOKEN_DEF;
+    } else if (IS_TOKEN("del")) {
+        return TOKEN_DEL;
+    } else if (IS_TOKEN("elif")) {
+        return TOKEN_ELIF;
+    } else if (IS_TOKEN("else")) {
+        return TOKEN_ELSE;
+    } else if (IS_TOKEN("except")) {
+        return TOKEN_EXCEPT;
+    } else if (IS_TOKEN("False")) {
+        return TOKEN_FALSE;
+    } else if (IS_TOKEN("finally")) {
+        return TOKEN_FINALLY;
+    } else if (IS_TOKEN("for")) {
+        return TOKEN_FOR;
+    } else if (IS_TOKEN("from")) {
+        return TOKEN_FROM;
+    } else if (IS_TOKEN("global")) {
+        return TOKEN_GLOBAL;
+    } else if (IS_TOKEN("if")) {
+        return TOKEN_IF;
+    } else if (IS_TOKEN("import")) {
+        return TOKEN_IMPORT;
+    } else if (IS_TOKEN("in")) {
+        return TOKEN_IN;
+    } else if (IS_TOKEN("is")) {
+        return TOKEN_IS;
+    } else if (IS_TOKEN("lambda")) {
+        return TOKEN_LAMBDA;
+    } else if (IS_TOKEN("None")) {
+        return TOKEN_NONE;
+    } else if (IS_TOKEN("nonlocal")) {
+        return TOKEN_NONLOCAL;
+    } else if (IS_TOKEN("not")) {
+        return TOKEN_NOT;
+    } else if (IS_TOKEN("or")) {
+        return TOKEN_OR;
+    } else if (IS_TOKEN("pass")) {
+        return TOKEN_PASS;
+    } else if (IS_TOKEN("raise")) {
+        return TOKEN_RAISE;
+    } else if (IS_TOKEN("return")) {
+        return TOKEN_RETURN;
+    } else if (IS_TOKEN("True")) {
+        return TOKEN_TRUE;
+    } else if (IS_TOKEN("try")) {
+        return TOKEN_TRY;
+    } else if (IS_TOKEN("while")) {
+        return TOKEN_WHILE;
+    } else if (IS_TOKEN("with")) {
+        return TOKEN_WITH;
+    } else if (IS_TOKEN("yield")) {
+        return TOKEN_YIELD;
+    } else {
+        return TOKEN_NAME;
+    }
+
+    #undef IS_TOKEN
+}
+
 static Token name(Scanner *scnr) {
     while (isAlphanum(peek(scnr)) || peek(scnr) == '_')
         advance(scnr);
 
-    return makeToken(scnr, TOKEN_NAME);
+    return makeToken(scnr, nameType(scnr));
 }
 
 static Token string(Scanner *scnr) {

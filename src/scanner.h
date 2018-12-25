@@ -63,6 +63,39 @@
     FUNC(ERROR) \
     FUNC(NT_OFFSET) \
     FUNC(ENCODING) \
+    FUNC(AND) \
+    FUNC(AS) \
+    FUNC(ASSERT) \
+    FUNC(BREAK) \
+    FUNC(CLASS) \
+    FUNC(CONTINUE) \
+    FUNC(DEF) \
+    FUNC(DEL) \
+    FUNC(ELIF) \
+    FUNC(ELSE) \
+    FUNC(EXCEPT) \
+    FUNC(FALSE) \
+    FUNC(FINALLY) \
+    FUNC(FOR) \
+    FUNC(FROM) \
+    FUNC(GLOBAL) \
+    FUNC(IF) \
+    FUNC(IMPORT) \
+    FUNC(IN) \
+    FUNC(IS) \
+    FUNC(LAMBDA) \
+    FUNC(NONE) \
+    FUNC(NONLOCAL) \
+    FUNC(NOT) \
+    FUNC(OR) \
+    FUNC(PASS) \
+    FUNC(RAISE) \
+    FUNC(RETURN) \
+    FUNC(TRUE) \
+    FUNC(TRY) \
+    FUNC(WHILE) \
+    FUNC(WITH) \
+    FUNC(YIELD) \
 
 typedef enum {
     #define EXPAND(NAME) TOKEN_ ## NAME,
