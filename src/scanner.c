@@ -95,7 +95,7 @@ static bool isAlpha(const char c) {
 }
 
 static bool isAlphanum(const char c) {
-    return isAlpha(c) || isDigit(c) || c == '_';
+    return isAlpha(c) || isDigit(c);
 }
 
 static bool isWhitespace(const char c) {
@@ -124,13 +124,14 @@ static void skipWhitespace(Scanner *scnr) {
 }
 
 static Token name(Scanner *scnr) {
-    while (isAlphanum(peek(scnr)))
+    while (isAlphanum(peek(scnr)) || peek(scnr) == '_')
         advance(scnr);
 
     return makeToken(scnr, TOKEN_NAME);
 }
 
-static Token string(Scanner *scnr, char quote_char) {
+static Token string(Scanner *scnr) {
+    char quote_char = advance(scnr);
     while (!isAtEnd(scnr)
         && peek(scnr) != '\n'
         && peek(scnr) != quote_char) {
@@ -215,7 +216,7 @@ Token scanToken(Scanner *scnr) {
     }
 
     markTokenStart(scnr);
-    
+
     while (isSignificantWhitespace(scnr)
         || (isAtEnd(scnr) && hasPendingDedents(scnr))) {
         IndentState state = checkIndent(scnr);
@@ -246,7 +247,7 @@ Token scanToken(Scanner *scnr) {
     }
 
     if (peek(scnr) == '\n') {
-        if (scnr->level > 0) {
+        if (!isSignificantWhitespace(scnr)) {
             advance(scnr);
             return scanToken(scnr);
         } else {
@@ -258,12 +259,12 @@ Token scanToken(Scanner *scnr) {
         }
     }
 
+    if (isDigit(peek(scnr))) return number(scnr);
+    else if (isAlpha(peek(scnr))) return name(scnr);
+    else if (peek(scnr) == '"' || peek(scnr) == '\'') return string(scnr);
+
     char c = advance(scnr);
 
-    if (isDigit(c)) return number(scnr);
-    else if (isAlpha(c)) return name(scnr);
-    else if (c == '"' || c == '\'') return string(scnr, c);
-    
     switch (c) {
         case '(':
             ++scnr->level;
