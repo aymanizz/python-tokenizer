@@ -383,9 +383,13 @@ Token scanToken(Scanner *scnr) {
         case ',':
             return makeToken(scnr, TOKEN_COMMA);
         case '.':
-            if (peek(scnr) == '.' && peekNext(scnr) == '.')
+            if (peek(scnr) == '.' && peekNext(scnr) == '.') {
+                advance(scnr);
+                advance(scnr);
                 return makeToken(scnr, TOKEN_ELLIPSIS);
-            return makeToken(scnr, TOKEN_DOT);
+            } else {
+                return makeToken(scnr, TOKEN_DOT);
+            }
         case '+':
             return makeToken(scnr,
                 match(scnr, '=') ? TOKEN_PLUSEQUAL : TOKEN_PLUS);
