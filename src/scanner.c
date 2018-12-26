@@ -333,7 +333,7 @@ Token scanToken(Scanner *scnr) {
     }
 
     if (peek(scnr) == '\n') {
-        if (!isSignificantWhitespace(scnr)) {
+        if (scnr->level != 0) {
             advance(scnr);
             return scanToken(scnr);
         } else {
