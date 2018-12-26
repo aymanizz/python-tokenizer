@@ -226,10 +226,11 @@ static Token string(Scanner *scnr) {
 }
 
 static Token number(Scanner *scnr) {
+    bool has_point = advance(scnr) == '.';
     while (isDigit(peek(scnr)))
         advance(scnr);
 
-    if (peek(scnr) == '.' && isDigit(peekNext(scnr))) {
+    if (peek(scnr) == '.' && !has_point) {
         advance(scnr);
         while (isDigit(peek(scnr)))
             advance(scnr);
@@ -345,11 +346,16 @@ Token scanToken(Scanner *scnr) {
         }
     }
 
-    if (isDigit(peek(scnr))) return number(scnr);
-    else if (isAlpha(peek(scnr))) return name(scnr);
-    else if (peek(scnr) == '"' || peek(scnr) == '\'') return string(scnr);
+    char c = peek(scnr);
 
-    char c = advance(scnr);
+    if (isDigit(c) || (c == '.' && isDigit(peekNext(scnr))))
+        return number(scnr);
+    else if (isAlpha(c) || c == '_')
+        return name(scnr);
+    else if (c == '"' || c == '\'')
+        return string(scnr);
+
+    advance(scnr);
 
     switch (c) {
         case '(':
