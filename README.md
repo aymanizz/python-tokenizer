@@ -7,10 +7,10 @@ tokenizer does.
 
 This tokenizer:
 
-- does not emit NL.
-- does not report some of the errors.
-- does not recognize encoding comment.
-- does not support unicode.
+- **does not** emit NL (I still haven't figured what's the use of this token. Probably just to make tokenizing easier as it's emitted where a newline is not significant, i.e. doesn't indicate the end of a statement.)
+- **does not** recognize encoding comment.
+- **does not** support unicode.
+- **does** emit tokens for each reserved keyword.
 
 I plan on adding support for some of these but not all. The implementation will
 differ from the cpython's in many ways.
