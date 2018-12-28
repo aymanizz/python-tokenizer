@@ -37,22 +37,17 @@ static char *readFile(const char *path) {
 }
 
 static void printToken(Token const token) {
-    #define PRINT_TOKEN(TOKEN) \
-        case TOKEN_ ## TOKEN: \
-            printf("%02i, %02i: \t %-16s \'%.*s\'\n", \
-                token.line, token.column, #TOKEN, token.length, token.start); \
-            break;
-
-    if (token.type == TOKEN_NEWLINE) {
-        printf("%02i, %02i: \t %-16s\n", token.line, token.column, "NEWLINE");
-        return;
-    }
+    const char *name = Token_Names[token.type];
 
     switch (token.type) {
-        FOREACH_TOKEN(PRINT_TOKEN)
+        case TOKEN_NEWLINE:
+        case TOKEN_ENDMARKER:
+            printf("%02i, %02i: \t %-16s\n", token.line, token.column, name);
+            break;
+        default:
+            printf("%02i, %02i: \t %-16s \'%.*s\'\n",
+                token.line, token.column, name, token.length, token.start);
     }
-
-    #undef PRINT_TOKEN
 }
 
 static void runFile(const char *path) {
