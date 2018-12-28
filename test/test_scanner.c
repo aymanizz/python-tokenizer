@@ -1,6 +1,8 @@
 #include <string.h>
 
 #include "lib/munit/munit.h"
+
+#include "src/token.c"
 #include "src/scanner.c"
 
 static MunitResult
@@ -110,10 +112,49 @@ test_number(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
+static MunitResult
+test_level(const MunitParameter params[], void *data) {
+    Scanner scanner;
+    const char * const tests_lvl[][4] = {
+        // level is -1
+        {"())", "{}}", "(}]", "[]}"},
+        // level is 0
+        {"()", "{}", "[]", "[(({[{}]}))]"},
+        // level is 1
+        {"(()", "{)(", "[}[", "([)"}
+    };
+
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            const char * const test_case = tests_lvl[i][j];
+            initScanner(&scanner, test_case);
+            Token token;
+
+            for (int i = 0; i < strlen(test_case); ++i) {
+                token = scanToken(&scanner);
+            }
+            
+            fprintf(stderr, "\n=== test case '%s' ===\n", test_case);
+
+            munit_assert_int(scanner.level, ==, i - 1);
+
+            token = scanToken(&scanner);
+            if (i - 1 == 0) {
+                munit_assert_int(token.type, ==, TOKEN_ENDMARKER);
+            } else {
+                munit_assert_int(token.type, ==, TOKEN_ERROR);
+            }
+        }
+    }
+
+    return MUNIT_OK;
+}
+
 static MunitTest test_suite_tests[] = {
     {"name test", test_name, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {"string test", test_string, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {"number test", test_number, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    {"level test", test_level, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}
 };
 
