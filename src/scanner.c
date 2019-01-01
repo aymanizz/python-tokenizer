@@ -214,16 +214,36 @@ static Token name(Scanner *scnr) {
 
 static Token string(Scanner *scnr) {
     char quote_char = advance(scnr);
-    while (!isAtEnd(scnr)
-        && peek(scnr) != '\n'
-        && peek(scnr) != quote_char) {
+
+    // determine if its a multiline string
+    bool is_multiline = false;
+    if (peek(scnr) == quote_char && peekNext(scnr) == quote_char) {
         advance(scnr);
+        advance(scnr);
+        is_multiline = true;
     }
 
-    if (isAtEnd(scnr) || peek(scnr) == '\n')
-        return errorToken(scnr, "unterminated string literal");
+    for (;;) {
+        // don't consume newline character in an unterminated single-line string.
+        if (isAtEnd(scnr) || (!is_multiline && peek(scnr) == '\n'))
+            return errorToken(scnr, "unterminated string literal");
 
-    advance(scnr); // consume the closing quotation mark.
+        char c = advance(scnr);
+
+        if (c == quote_char && is_multiline
+         && peek(scnr) == quote_char
+         && peekNext(scnr) == quote_char)
+        {
+            advance(scnr);
+            advance(scnr);
+            break;
+        } else if (c == quote_char && !is_multiline) {
+            break;
+        } else if (c == '\\') {
+            match(scnr, '\n');
+        }
+    }
+
     return makeToken(scnr, TOKEN_STRING);
 }
 
