@@ -45,12 +45,15 @@ test_string(const MunitParameter params[], void* data) {
         {"'string literal'", "'string literal'"},
         {"\"string\" other tokens", "\"string\""},
         {"'c'other tokens", "'c'"},
+        {"'new\\\nline\\\nskipped'", "'new\\\nline\\\nskipped'"},
+        {"'''multi\nline\nstrings'''", "'''multi\nline\nstrings'''"}
     };
     const char *tests_fail[] = {
         "\"unterminated",
         "'unterminated",
+        "'''unterminated\nmultiline",
         "\"terminated on\n newline\"",
-        "'terminated on\n newline'"
+        "'terminated on\n newline'",
     };
     int ok_cases = sizeof(tests_ok) / sizeof(*tests_ok);
     int fail_cases = sizeof(tests_fail) / sizeof(*tests_fail);
