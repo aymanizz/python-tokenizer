@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <string.h>
 
 #include "lib/munit/munit.h"
@@ -130,7 +131,7 @@ test_level(const MunitParameter params[], void *data) {
             initScanner(&scanner, test_case);
             Token token;
 
-            for (int i = 0; i < strlen(test_case); ++i) {
+            for (size_t i = 0; i < strlen(test_case); ++i) {
                 token = scanToken(&scanner);
             }
             
