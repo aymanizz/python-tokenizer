@@ -21,6 +21,7 @@ typedef struct {
     const char *current;
     int start_line;
     int start_column;
+    int current_line;
     int current_column;
     int level;
     int indents[MAX_INDENT];

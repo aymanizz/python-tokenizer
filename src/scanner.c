@@ -9,6 +9,7 @@ void initScanner(Scanner *scnr, const char *source) {
     scnr->current = source;
     scnr->start_line = 1;
     scnr->start_column = 0;
+    scnr->current_line = 1;
     scnr->current_column = 0;
     scnr->level = 0;
     scnr->indents[0] = 0;
@@ -39,12 +40,13 @@ static Token errorToken(Scanner const *scnr, const char *message) {
 
 static void markTokenStart(Scanner *scnr) {
     scnr->start = scnr->current;
+    scnr->start_line = scnr->current_line;
     scnr->start_column = scnr->current_column;
 }
 
 static char advance(Scanner *scnr) {
     if (*scnr->current == '\n') {
-        ++scnr->start_line;
+        ++scnr->current_line;
         scnr->current_column = 0;
         scnr->is_line_start = true;
     } else {
@@ -333,16 +335,11 @@ Token scanToken(Scanner *scnr) {
         return makeToken(scnr, TOKEN_ENDMARKER);
     }
 
-    if (peek(scnr) == '\n') {
+    if (match(scnr, '\n')) {
         if (scnr->level != 0) {
-            advance(scnr);
             return scanToken(scnr);
         } else {
-            // emit token at the correct line and column.
-            ++scnr->current_column;
-            Token tok = makeToken(scnr, TOKEN_NEWLINE);
-            advance(scnr);
-            return tok;
+            return makeToken(scnr, TOKEN_NEWLINE);
         }
     }
 
