@@ -36,6 +36,21 @@ static char *readFile(const char *path) {
     return source;
 }
 
+static void printRepr(const char * string, int length) {
+    while (length--) {
+        char c = *string++;
+        switch(c) {
+            case '\f': fputs("\\f", stdout); break;
+            case '\n': fputs("\\n", stdout); break;
+            case '\r': fputs("\\r", stdout); break;
+            case '\t': fputs("\\t", stdout); break;
+            case '\v': fputs("\\v", stdout); break;
+            case '\\': fputs("\\\\", stdout); break;
+            default : putchar(c); break;
+        }
+    }
+}
+
 static void printToken(Token const token) {
     const char *name = Token_Names[token.type];
 
@@ -43,6 +58,12 @@ static void printToken(Token const token) {
         case TOKEN_NEWLINE:
         case TOKEN_ENDMARKER:
             printf("%02i, %02i: \t %-16s\n", token.line, token.column, name);
+            break;
+        case TOKEN_STRING:
+            printf("%02i, %02i: \t %-16s \'",
+                token.line, token.column, name);
+            printRepr(token.start, token.length);
+            puts("\'");
             break;
         default:
             printf("%02i, %02i: \t %-16s \'%.*s\'\n",
