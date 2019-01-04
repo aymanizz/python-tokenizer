@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #include "scanner.h"
+
+#define TAB_SIZE 8
 
 void initScanner(Scanner *scnr, const char *source) {
     scnr->start = source;
@@ -13,6 +16,7 @@ void initScanner(Scanner *scnr, const char *source) {
     scnr->current_column = 0;
     scnr->level = 0;
     scnr->indents[0] = 0;
+    scnr->altindents[0] = 0;
     scnr->indent = 0;
     scnr->pending_dedents = 0;
     scnr->is_line_start = true;
@@ -270,13 +274,17 @@ static IndentState getIndentation(Scanner *scnr) {
     }
 
     int spaces = 0;
+    int altspaces = 0;
     for (;;) {
-        if (match(scnr, ' '))
+        if (match(scnr, ' ')) {
             ++spaces;
-        else if (match(scnr, '\t'))
-            spaces += 4;
-        else
+            ++altspaces;
+        } else if (match(scnr, '\t')) {
+            spaces = (spaces / TAB_SIZE + 1) * TAB_SIZE;
+            ++altspaces;
+        } else {
             break;
+        }
     }
 
     // handle empty lines.
@@ -288,12 +296,18 @@ static IndentState getIndentation(Scanner *scnr) {
     }
     
     if (scnr->indents[scnr->indent] == spaces) {
+        if (scnr->altindents[scnr->indent] != altspaces)
+            return INDENT_ERROR;
         return INDENT_NONE;
     } else if (scnr->indents[scnr->indent] < spaces) {
+        if (scnr->altindents[scnr->indent] >= altspaces)
+            return INDENT_ERROR;
         if (scnr->indent + 1 == MAX_INDENT)
             return INDENT_EXCEED;
 
-        scnr->indents[++scnr->indent] = spaces;
+        ++scnr->indent;
+        scnr->indents[scnr->indent] = spaces;
+        scnr->altindents[scnr->indent] = altspaces;
         return INDENT_INCREMENT;
     } else {
         while (scnr->indents[scnr->indent] > spaces) {
@@ -301,7 +315,8 @@ static IndentState getIndentation(Scanner *scnr) {
             ++scnr->pending_dedents;
         }
 
-        if (scnr->indents[scnr->indent] < spaces)
+        if (scnr->indents[scnr->indent] != spaces
+            || scnr->altindents[scnr->indent] != altspaces)
             return INDENT_ERROR;
 
         --scnr->pending_dedents;
@@ -327,7 +342,7 @@ Token scanToken(Scanner *scnr) {
             return errorToken(scnr,
                 "indents exceeded the maximum indentation limit");
         } else if (state == INDENT_ERROR) {
-            return errorToken(scnr, "unexpected indent");
+            return errorToken(scnr, "indent error");
         } else if (state == INDENT_NONE) {
             markTokenStart(scnr);
             break;

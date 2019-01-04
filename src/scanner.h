@@ -25,6 +25,7 @@ typedef struct {
     int current_column;
     int level;
     int indents[MAX_INDENT];
+    int altindents[MAX_INDENT];
     int indent;
     int pending_dedents;
     bool is_line_start;
