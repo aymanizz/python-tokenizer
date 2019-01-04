@@ -61,14 +61,6 @@ static bool isAtEnd(Scanner const *scnr) {
     return *scnr->current == '\0';
 }
 
-static bool isSignificantWhitespace(Scanner const *const scnr) {
-    return scnr->is_line_start && scnr->level == 0;
-}
-
-static bool hasPendingDedents(Scanner const *const scnr) {
-    return scnr->indent != 0 || scnr->pending_dedents != 0;
-}
-
 static char peek(Scanner const *scnr) {
     return *scnr->current;
 }
@@ -114,6 +106,7 @@ static void skipWhitespace(Scanner *scnr) {
                 advance(scnr);
                 break;
             case '\n':
+                // don't consume newline
                 return;
             case '#':
                 while (!isAtEnd(scnr) && peek(scnr) != '\n')
@@ -270,9 +263,11 @@ typedef enum {
     INDENT_EMPTY
 } IndentState;
 
-static IndentState checkIndent(Scanner *scnr) {
-    if (scnr->pending_dedents > 0)
+static IndentState getIndentation(Scanner *scnr) {
+    if (scnr->pending_dedents > 0) {
+        --scnr->pending_dedents;
         return INDENT_DECREMENT;
+    }
 
     int spaces = 0;
     for (;;) {
@@ -309,31 +304,24 @@ static IndentState checkIndent(Scanner *scnr) {
         if (scnr->indents[scnr->indent] < spaces)
             return INDENT_ERROR;
 
+        --scnr->pending_dedents;
         return INDENT_DECREMENT;
     }
 }
 
 Token scanToken(Scanner *scnr) {
-    if (!isSignificantWhitespace(scnr)) {
+    if (!scnr->is_line_start || scnr->level != 0) {
         skipWhitespace(scnr);
     }
 
     markTokenStart(scnr);
 
-    if (isAtEnd(scnr) && scnr->level != 0) {
-        // report the error only once.
-        scnr->level = 0;
-        return errorToken(scnr, "EOF in multi-line statement");
-    }
-
-    while (isSignificantWhitespace(scnr)
-        || (isAtEnd(scnr) && hasPendingDedents(scnr))) {
-        IndentState state = checkIndent(scnr);
+    while ((scnr->is_line_start && scnr->level == 0) || isAtEnd(scnr)) {
+        IndentState state = getIndentation(scnr);
 
         if (state == INDENT_INCREMENT) {
             return makeToken(scnr, TOKEN_INDENT);
         } else if (state == INDENT_DECREMENT) {
-            --scnr->pending_dedents;
             return makeToken(scnr, TOKEN_DEDENT);
         } else if (state == INDENT_EXCEED) { 
             return errorToken(scnr,
@@ -352,7 +340,13 @@ Token scanToken(Scanner *scnr) {
     }
 
     if (isAtEnd(scnr)) {
-        return makeToken(scnr, TOKEN_ENDMARKER);
+        if (scnr->level != 0) {
+            // report error only once.
+            scnr->level = 0;
+            return errorToken(scnr, "EOF in multi-line statement");
+        } else {
+            return makeToken(scnr, TOKEN_ENDMARKER);
+        }
     }
 
     if (match(scnr, '\n')) {
