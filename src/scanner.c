@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 #include <assert.h>
 
 #include "scanner.h"
@@ -83,17 +84,13 @@ static char match(Scanner *scnr, const char expected) {
     return false;
 }
 
-static bool isDigit(const char c) {
-    return c >= '0' && c <= '9';
-}
-
 static bool isAlpha(const char c) {
     return ((c >= 'a' && c <= 'z')
         || (c >= 'A' && c <= 'Z'));
 }
 
 static bool isAlphanum(const char c) {
-    return isAlpha(c) || isDigit(c);
+    return isAlpha(c) || isdigit(c);
 }
 
 static bool isWhitespace(const char c) {
@@ -245,13 +242,33 @@ static Token string(Scanner *scnr) {
 }
 
 static Token number(Scanner *scnr) {
+    if (match(scnr, '0')) {
+        bool got_num = true;
+        if (match(scnr, 'b') || match(scnr, 'B')) {
+            while (peek(scnr) == '0' || peek(scnr) == '1')
+                advance(scnr);
+        } else if (match(scnr, 'o') || match(scnr, 'O')) {
+            while (peek(scnr) >= '0' && peek(scnr) <= '8')
+                advance(scnr);
+        } else if (match(scnr, 'x') || match(scnr, 'X')) {
+            while (isxdigit(peek(scnr)))
+                advance(scnr);
+        } else {
+            got_num = false;
+        }
+
+        if (got_num)
+            return makeToken(scnr, TOKEN_NUMBER);
+    }
+
     bool has_point = advance(scnr) == '.';
-    while (isDigit(peek(scnr)))
+
+    while (isdigit(peek(scnr)))
         advance(scnr);
 
     if (peek(scnr) == '.' && !has_point) {
         advance(scnr);
-        while (isDigit(peek(scnr)))
+        while (isdigit(peek(scnr)))
             advance(scnr);
     }
 
@@ -374,7 +391,7 @@ Token scanToken(Scanner *scnr) {
 
     char c = peek(scnr);
 
-    if (isDigit(c) || (c == '.' && isDigit(peekNext(scnr))))
+    if (isdigit(c) || (c == '.' && isdigit(peekNext(scnr))))
         return number(scnr);
     else if (isAlpha(c) || c == '_')
         return name(scnr);
