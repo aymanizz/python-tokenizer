@@ -93,7 +93,13 @@ test_number(const MunitParameter params[], void *data) {
         {"84.", "84."},
         {".25.25", ".25"},
         {"25.12.67", "25.12"},
-        {"21street", "21"}
+        {"21street", "21"},
+        {"0b110125", "0b1101"},
+        {"0B101", "0B101"},
+        {"0o01234567", "0o01234567"},
+        {"0O0123987", "0O0123"},
+        {"0x0123456789abcdef", "0x0123456789abcdef"},
+        {"0XABCDEFG", "0XABCDEF"},
     };
     int ok_cases = sizeof(tests_ok) / sizeof(*tests_ok);
 
